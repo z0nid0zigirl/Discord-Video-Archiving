@@ -87,7 +87,49 @@ async function* fetchAllMessages(channel) {
     }
 }
 
+// Compares two Discord IDs (snowflakes) numerically; they are too big for Number
+function compareIds(a, b) {
+    const x = BigInt(a);
+    const y = BigInt(b);
+    return x < y ? -1 : x > y ? 1 : 0;
+}
+
+function readJsonFile(file, fallback = null) {
+    try {
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (error) {
+        if (error.code === 'ENOENT') return fallback;
+        throw error;
+    }
+}
+
+// Writes to a temp file first, so a crash mid-write never leaves a half-written file
+function writeJsonAtomic(file, data) {
+    ensureDir(path.dirname(file));
+    const tmp = `${file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, file);
+}
+
+// Turns a relative path into a URL path that survives spaces, # and ? in file names
+function encodePath(relativePath) {
+    return relativePath.split(/[\\/]/).map(encodeURIComponent).join('/');
+}
+
+function formatBytes(bytes) {
+    if (!Number.isFinite(bytes)) return '?';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+    return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+}
+
 module.exports = {
+    compareIds,
+    readJsonFile,
+    writeJsonAtomic,
+    encodePath,
+    formatBytes,
     OUTPUT_ROOT,
     sleep,
     sanitizeFilename,

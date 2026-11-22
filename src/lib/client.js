@@ -1,9 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env') });
 const { Client, Events, GatewayIntentBits, PermissionFlagsBits } = require('discord.js');
-
-// Thrown for setup mistakes; printed as a plain message instead of a stack trace
-class ConfigError extends Error {}
+const { ConfigError } = require('./errors');
 
 function getEnv(name) {
     const value = process.env[name];
