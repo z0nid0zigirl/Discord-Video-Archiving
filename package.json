@@ -8,15 +8,20 @@
     "text": "node src/text-archiver.js",
     "text:multi": "node src/multi-channel-archiver.js"
   },
-  "keywords": ["discord", "archive", "backup", "discord.js"],
+  "keywords": [
+    "discord",
+    "archive",
+    "backup",
+    "discord.js"
+  ],
   "author": "z0ni",
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "archiver": "^6.0.1",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.1"
+    "archiver": "^7.0.1",
+    "discord.js": "^14.28.1",
+    "dotenv": "^16.6.1"
   }
 }
