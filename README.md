@@ -1,14 +1,16 @@
 # Discord Server Archiver
 
-A small set of Node.js tools for preserving a Discord server: its media files and its message history, organized by channel and by who posted what.
+A Node.js tool for preserving a Discord server: every message, photo, video and audio file, in folders by category and channel, with a record of who posted what.
 
-| Command | What it does |
-|---|---|
-| `npm run media` | Downloads media attachments from every channel in a server into one folder per channel, skips duplicate files, and zips the result |
-| `npm run text` | Archives the full message history of one channel as HTML, JSON and plain text |
-| `npm run text:multi` | Archives the message history of several channels, or every channel in a server, with a browsable index page |
+```bash
+npm run archive
+```
 
-All three use the same bot and the same `.env` file.
+- **Folders like the sidebar:** `Server / Category / channel /`, with `photos/`, `videos/` and `audio/` inside each channel and threads and forum posts under `threads/`.
+- **Every photo and video:** files are sorted by the type Discord reports, so `.mov`, `.webm`, `.heic` and friends are kept. Files in forwarded messages, GIFs from Tenor and Giphy, and images posted as links are saved too.
+- **Who posted what:** every message and every file carries the poster's user ID, username and display name. File names include them, and `users.json` lists every poster.
+- **Browsable offline:** each channel gets an HTML page that shows its photos and videos from the saved files, plus JSON and plain text. `index.html` ties the server together.
+- **Safe to stop:** progress is saved as it goes. Run it again after a crash or Ctrl+C and it carries on; run it next month and it only fetches what's new.
 
 ---
 
@@ -29,135 +31,169 @@ All three use the same bot and the same `.env` file.
 
 > Without Message Content Intent the bot fails to start with `Used disallowed intents`.
 
-### 2. Invite the bot to your server
-
-1. Open **OAuth2 → URL Generator**.
-2. Under **Scopes**, tick `bot`.
-3. Under **Bot Permissions**, tick **View Channels** and **Read Message History**.
-4. Open the generated URL, pick your server and authorize.
-
-The bot can only archive channels it can see. For private channels, give the bot's role access to them.
-
-### 3. Get IDs
-
-In Discord, turn on **Settings → Advanced → Developer Mode**. Then:
-
-- **Server ID:** right-click the server icon → **Copy Server ID**
-- **Channel ID:** right-click a channel → **Copy Channel ID**
-
-### 4. Install and configure
+### 2. Install and configure
 
 ```bash
 npm install
 ```
 
-Copy `.env.example` to `.env` (on Windows PowerShell: `Copy-Item .env.example .env`) and fill in:
+Copy `.env.example` to `.env` (on Windows PowerShell: `Copy-Item .env.example .env`) and fill in `DISCORD_TOKEN` and `GUILD_ID`.
 
-| Variable | Used by | Notes |
-|---|---|---|
-| `DISCORD_TOKEN` | all | Required |
-| `GUILD_ID` | `media`, `text:multi` | Server to archive |
-| `CHANNEL_ID` | `text` | One channel |
-| `CHANNEL_IDS` | `text:multi` | Comma-separated channel IDs. If set, used instead of `GUILD_ID` |
-| `SKIP_CHANNELS` | `media`, `text:multi` | Optional. Comma-separated channel names to leave out of a whole-server run |
-| `MEDIA_EXTENSIONS` | `media` | Optional. Comma-separated file types, e.g. `.mp3,.mp4,.wav`. Defaults to `.mp3 .mp4 .jpg .jpeg .png .gif .webp .bmp` |
+To get IDs, turn on **Settings → Advanced → Developer Mode** in Discord. Then:
+
+- **Server ID:** right-click the server icon → **Copy Server ID**
+- **Channel ID:** right-click a channel → **Copy Channel ID**
+
+### 3. Invite the bot to your server
+
+```bash
+npm run invite
+```
+
+This prints an invite link with exactly the permissions the bot needs: **View Channels** and **Read Message History**. Open it, pick your server and authorize. It also prints a second link that adds **Manage Threads**, which is only needed to archive private threads that have been archived.
+
+The bot can only archive channels it can see. For private channels, give the bot's role access to them.
+
+### 4. Check what it can see
+
+```bash
+npm run archive -- --dry-run
+```
+
+Lists every category, channel and thread the bot will archive, and every channel it can't read and why. Nothing is downloaded.
 
 ---
 
 ## Usage
 
-Run commands from the project folder. Each tool logs in, does its work, prints a summary and exits. Everything is written to the `output/` folder.
-
-### Media archive
+Run commands from the project folder. Everything is written to the `output/` folder.
 
 ```bash
-npm run media
+npm run archive                                  # the whole server
+npm run archive -- --channels 1234,5678          # only these channels, categories or threads
+npm run archive -- --text-only                   # messages only, no downloads
+npm run archive -- --media-only --zip            # files only, plus a ZIP
 ```
 
-Goes through every readable channel in `GUILD_ID`, downloads matching attachments, and builds a ZIP.
+| Option | What it does |
+|---|---|
+| `--channels <ids>` | Only these channels, categories or threads (comma-separated IDs). A channel brings its threads; a category brings its channels. Default: `CHANNEL_IDS` from `.env`, otherwise the whole server |
+| `--text-only` | Messages only; downloads nothing |
+| `--media-only` | Files only; no message pages |
+| `--all-files` | Also download other attachments (PDFs, ZIPs, ...) |
+| `--no-embeds` | Skip media from links (Tenor and Giphy GIFs, image links) |
+| `--no-threads` | Skip threads and forum posts |
+| `--dedupe <mode>` | `channel` (default): identical files are stored once per channel. `server`: once per server; reposts elsewhere point to the first copy. `none`: keep every copy |
+| `--zip` | Also write a ZIP of the archive (without the resume data) |
+| `--out <folder>` | Where archives go (default `./output`) |
+| `--dry-run` | List what would be archived; download nothing |
 
-**Deduplication:** every downloaded file is hashed (SHA-256). If the same file was posted again anywhere in the server, only the first copy is kept. The repost is still recorded in that channel's `_metadata.json` with `"duplicate": true`, so you keep the record of who posted it and when.
+### What you get
 
 ```
-output/media/
-├── My_Server_2026-11-21/
-│   ├── _server_metadata.json
-│   ├── general/
-│   │   ├── _metadata.json
-│   │   ├── 2019-03-02T18-44-10_alice_song.mp3
-│   │   └── 2021-07-15T09-01-55_bob_clip.mp4
-│   └── memes/
-│       └── ...
-└── My_Server_2026-11-21.zip
+output/My Server (123456789012345678)/
+├── index.html                ← start here
+├── server.json               ← categories, channels, counts, anything skipped
+├── users.json                ← every poster: user ID, names, message and file counts
+├── No Category/              ← channels that aren't in a category
+│   └── welcome/
+├── INFO/                     ← a category
+│   └── general/              ← a channel
+│       ├── messages.html     ← photos and videos shown from the saved files
+│       ├── messages.json
+│       ├── messages.txt
+│       ├── media.json        ← every file: who posted it, when, its hash
+│       ├── photos/
+│       │   └── 2024-01-15_10-30-00_alice_987654321098765432_cat.jpg
+│       ├── videos/
+│       ├── audio/
+│       └── threads/
+│           └── cat appreciation/   ← same layout as a channel
+└── 📸┃MEDIA/
+    └── help-forum/
+        └── threads/          ← forum posts
 ```
 
-Files are named `<timestamp>_<username>_<original name>`.
+- **File names** are `<date and time (UTC)>_<username>_<user ID>_<original name>`.
+- **Folder names** keep emoji and non-English letters; only characters a filesystem can't store are replaced with `_`. If two channels share a name, the second gets its ID added.
+- **Empty channels** don't get a folder; they're still listed in `index.html`.
 
-Each file entry in `_metadata.json` looks like this:
+Each message in `messages.json`:
 
 ```json
 {
-  "original_filename": "song.mp3",
-  "username": "alice",
-  "user_id": "987654321098765432",
-  "timestamp": "2019-03-02T18:44:10.000Z",
-  "message_content": "check this out",
   "message_id": "112233445566778899",
-  "channel_name": "general",
-  "file_size": 5242880,
-  "file_hash": "9f86d081884c7d65...",
-  "filename": "2019-03-02T18-44-10_alice_song.mp3",
-  "duplicate": false
+  "user_id": "987654321098765432",
+  "username": "alice",
+  "display_name": "Alice",
+  "is_bot": false,
+  "timestamp": "01/15/2024, 10:30:00 AM",
+  "timestamp_iso": "2024-01-15T10:30:00.000Z",
+  "edited_timestamp_iso": null,
+  "type": "Default",
+  "pinned": false,
+  "content": "my cat",
+  "mentions": [],
+  "attachments": [
+    { "name": "cat.jpg", "kind": "photos", "size": 52133, "local_path": "photos/2024-01-15_10-30-00_alice_987654321098765432_cat.jpg", "...": "..." }
+  ],
+  "embeds": [],
+  "stickers": [],
+  "reactions": [{ "emoji": "🔥", "count": 3 }],
+  "reference": null,
+  "forwarded": [],
+  "thread_id": null
 }
 ```
 
-Duplicates have `"filename": null` and `"duplicate": true`. Failed downloads have `"filename": null` and an `"error"` field.
+`forwarded` holds the text and files of a forwarded message.
 
-Running the media archive twice on the same day replaces that day's folder and ZIP.
+Each file in `media.json` records `original_filename`, `kind`, `user_id`, `username`, `timestamp`, `message_id`, `message_content`, `file_size`, `file_hash` (SHA-256) and `path`. A duplicate has `"duplicate": true` and `duplicate_of` (the kept copy, relative to the server folder). A failed download has an `error`.
 
-### Single-channel text archive
+### Running it again
 
-```bash
-npm run text
-```
+The archive folder doesn't change between runs, so running the same command again:
 
-Archives every message in `CHANNEL_ID`:
+- **continues** an archive that was stopped (Ctrl+C) or crashed, from the last saved page;
+- **updates** a finished archive with messages posted since;
+- **retries** downloads that failed last time.
 
-```
-output/text/
-├── general_2026-11-21.html
-├── general_2026-11-21.json
-└── general_2026-11-21.txt
-```
+To archive a channel from scratch, delete its folder. To start over completely, delete the server's folder.
 
-### Multi-channel text archive
+### Duplicates
 
-```bash
-npm run text:multi
-```
+Every file is hashed (SHA-256). By default, a file posted twice in the same channel is stored once, so every channel folder is complete on its own. The copy kept is always the earliest post. With `--dedupe server`, a file is stored once for the whole server and reposts in other channels point to it.
 
-- With `CHANNEL_IDS` set, archives just those channels.
-- Otherwise archives every readable channel in `GUILD_ID` (minus `SKIP_CHANNELS`).
+### The original commands
 
-```
-output/text/My_Server_2026-11-21/
-├── index.html               ← start here
-├── _archive_summary.json
-├── general.html
-├── general.json
-├── general.txt
-└── ...
-```
+These still work and now write the same folder layout:
 
-If two channels share a name, the second gets its channel ID added to the filename.
+| Command | Same as |
+|---|---|
+| `npm run media` | `npm run archive -- --media-only --dedupe server --zip` (whole server, `GUILD_ID`) |
+| `npm run text` | `npm run archive -- --text-only --channels <CHANNEL_ID>` |
+| `npm run text:multi` | `npm run archive -- --text-only` (`CHANNEL_IDS`, otherwise `GUILD_ID`) |
 
-### Text archive formats
-
-- **HTML:** Discord-style dark page with a search box that filters by username or message text. Shows attachments, embeds, reactions and bot tags. Opens offline in any browser.
-- **JSON:** every message with its ID, author, timestamps, content, attachments, embeds, reactions and reply reference.
-- **TXT:** one line per message, `[timestamp] username: message`, with attachments and reactions underneath.
+You can add options to them too, e.g. `npm run media -- --no-embeds`.
 
 ---
+
+## Configuration
+
+`.env` settings (see `.env.example`):
+
+| Variable | Notes |
+|---|---|
+| `DISCORD_TOKEN` | Required |
+| `GUILD_ID` | Server to archive |
+| `CHANNEL_ID` | One channel, for `npm run text` |
+| `CHANNEL_IDS` | Comma-separated channel IDs. If set, used instead of the whole server |
+| `SKIP_CHANNELS` | Comma-separated channel names or IDs to leave out |
+| `MEDIA_EXTENSIONS` | Only download these file types, e.g. `.mp4,.mov`. Default: every photo, video and audio file |
+| `OUTPUT_DIR` | Where archives go. Default `./output` |
+| `DOWNLOAD_CONCURRENCY` | Files downloaded at once. Default `3` |
+| `FETCH_DELAY_MS` | Pause between 100-message pages. Default `250`; discord.js also handles Discord's rate limits itself |
+| `CLIENT_ID` | Only for `npm run invite`, if it can't work the ID out from the token |
 
 ## Troubleshooting
 
@@ -170,47 +206,59 @@ Check `DISCORD_TOKEN` in `.env`. If you reset the token in the Developer Portal,
 **`The bot is not in a server with ID …`**
 The bot hasn't been invited, or `GUILD_ID` is wrong. The error lists the servers the bot can see.
 
-**A channel is missing from a whole-server run**
-The bot can't view that channel or read its history. Give the bot's role access, or check `SKIP_CHANNELS`.
+**A channel is missing**
+Run `npm run archive -- --dry-run`: it lists every channel the bot can't read and why. Give the bot's role access, or check `SKIP_CHANNELS`.
 
 **Messages show as empty**
-Message Content Intent is off or was turned on after the bot connected. Turn it on, save, and run again.
+Message Content Intent is off or was turned on after the bot connected. Turn it on, save, delete the affected folders and run again.
 
 **It's slow**
-Discord returns 100 messages per request and the tools wait one second between requests to stay within rate limits. A channel with 100,000 messages takes roughly 20 minutes to read; the media archive also spends time downloading. Progress is printed as it goes.
-
----
+Discord returns 100 messages per request. Large servers take a while, and downloads add to it. Progress is printed as it goes, and you can stop and continue at any time.
 
 ## Limitations
 
 - **Deleted messages** can't be archived.
-- **Threads and forum posts** are only included if they're active when the tool runs. Archived threads are not fetched.
-- **Attachment links in text archives expire.** Discord's file URLs are signed and stop working after a while. To keep the actual files, use the media archive.
-- **Memory:** the text archivers hold one channel's messages in memory while writing, and the media archiver holds one file at a time. Very large channels need a correspondingly sized machine.
+- **Edits and reactions** on messages that are already archived aren't refreshed by later runs; only new messages are fetched. Delete a channel's folder to re-archive it.
+- **Folders keep their first name.** A channel that's renamed or moved to another category stays in its original folder.
+- **Private threads** that have been archived need the bot to have Manage Threads (see `npm run invite`).
+- **Link previews** of web pages (article thumbnails, YouTube) aren't saved, and YouTube videos aren't downloaded. Media from links is fetched only from Discord's cached copy; if Discord doesn't have one, it's skipped. Stickers are recorded by name only.
+- **Discord file links expire.** With `--text-only`, pages link to Discord's copy, which stops working after a while. Run without it (or with `--media-only` later) to keep the files.
+- **Memory:** pages for one channel are built in memory, so very large channels need a correspondingly sized machine. Downloads stream straight to disk.
 
-## Customization
+## Development
 
-- **Request delay:** `FETCH_DELAY_MS` in `src/lib/utils.js`.
-- **Output location:** `OUTPUT_ROOT` in `src/lib/utils.js`.
-- **HTML look:** the templates are in `src/lib/html.js`.
+```bash
+npm test
+```
 
-## Project layout
+The tests run the archiver end to end against a fake Discord (`test/helpers/fake-discord.js`) using the real discord.js client, so no bot or network is needed.
 
 ```
 src/
+├── archive.js                 npm run archive
 ├── media-archiver.js          npm run media
 ├── text-archiver.js           npm run text
 ├── multi-channel-archiver.js  npm run text:multi
+├── invite.js                  npm run invite
 └── lib/
-    ├── client.js              Discord login, .env loading, channel selection
-    ├── text-archive.js        Message collection and HTML/JSON/TXT writing
-    ├── html.js                HTML page templates
+    ├── client.js              Discord login and .env loading
+    ├── options.js             Command-line options
+    ├── run.js                 Archives a server and writes the index
+    ├── discover.js            Finds categories, channels and threads the bot can read
+    ├── archive-channel.js     Archives one channel: pages, downloads, duplicates
+    ├── store.js               Saved progress for resuming
+    ├── download.js            Streaming downloads with retries
+    ├── media.js               Sorts files into photos, videos, audio
+    ├── names.js               Safe folder and file names
+    ├── serialize.js           Message → JSON
+    ├── outputs.js             Writes messages.json/.html/.txt and media.json
+    ├── render.js              HTML pages
     └── utils.js               Shared helpers
 ```
 
 ## Privacy
 
-Archives contain usernames, user IDs and message content. Only archive servers you own or have permission to archive, store the output somewhere private, and follow Discord's Terms of Service.
+Archives contain usernames, user IDs, message content and files people posted. Only archive servers you own or have permission to archive, store the output somewhere private, and follow Discord's Terms of Service. This tool only works with a bot token; it never uses a personal account. It only connects to Discord: media from links comes from Discord's cached copy, never from the linked site.
 
 ## License
 

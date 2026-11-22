@@ -1,12 +1,15 @@
 {
   "name": "discord-server-archiver",
   "version": "2.0.0",
-  "description": "Archive a Discord server's media files and message history, organized by channel.",
+  "description": "Archive a Discord server: messages, photos, videos and audio, in folders by category and channel.",
   "private": true,
   "scripts": {
+    "archive": "node src/archive.js",
     "media": "node src/media-archiver.js",
     "text": "node src/text-archiver.js",
-    "text:multi": "node src/multi-channel-archiver.js"
+    "text:multi": "node src/multi-channel-archiver.js",
+    "invite": "node src/invite.js",
+    "test": "node --test test/*.test.js"
   },
   "keywords": ["discord", "archive", "backup", "discord.js"],
   "author": "z0ni",
@@ -15,8 +18,11 @@
     "node": ">=18"
   },
   "dependencies": {
-    "archiver": "^6.0.1",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.1"
+    "archiver": "^7.0.1",
+    "discord.js": "^14.28.1",
+    "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "ws": "^8.23.0"
   }
 }
