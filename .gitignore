@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Secrets: your bot token lives here
+.env
+
+# Archives can contain private messages and media
+output/
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+*.log
