@@ -8,7 +8,8 @@
     "media": "node src/media-archiver.js",
     "text": "node src/text-archiver.js",
     "text:multi": "node src/multi-channel-archiver.js",
-    "invite": "node src/invite.js"
+    "invite": "node src/invite.js",
+    "test": "node --test test/*.test.js"
   },
   "keywords": ["discord", "archive", "backup", "discord.js"],
   "author": "z0ni",
@@ -20,5 +21,8 @@
     "archiver": "^7.0.1",
     "discord.js": "^14.28.1",
     "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "ws": "^8.23.0"
   }
 }
