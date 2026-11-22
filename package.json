@@ -7,7 +7,8 @@
     "archive": "node src/archive.js",
     "media": "node src/media-archiver.js",
     "text": "node src/text-archiver.js",
-    "text:multi": "node src/multi-channel-archiver.js"
+    "text:multi": "node src/multi-channel-archiver.js",
+    "invite": "node src/invite.js"
   },
   "keywords": ["discord", "archive", "backup", "discord.js"],
   "author": "z0ni",
